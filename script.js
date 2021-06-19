@@ -1,82 +1,86 @@
-var myLatLng = { lat: 31.4961, lng: 74.264 };
-var mapOptions = {
+function initMap() {
+  const bounds = new google.maps.LatLngBounds();
+  const markersArray = [];
+  const origin1 = { lat: 31.4961, lng: 74.264 };
+  const origin2 = { lat: 31.5789, lng: 74.3044 };
+  const destinationA = { lat: 31.4961, lng: 74.264 };
+  const destinationB = { lat: 31.5789, lng: 74.3044 };
+  const destinationIcon =
+    "https://chart.googleapis.com/chart?" +
+    "chst=d_map_pin_letter&chld=D|FF0000|000000";
+  const originIcon =
+    "https://chart.googleapis.com/chart?" +
+    "chst=d_map_pin_letter&chld=O|FFFF00|000000";
+  const map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 31.4961, lng: 74.264 },
+    zoom: 10,
+  });
+  const geocoder = new google.maps.Geocoder();
+  const service = new google.maps.DistanceMatrixService();
+  service.getDistanceMatrix(
+    {
+      origins: [origin1, origin2],
+      destinations: [destinationA, destinationB],
+      travelMode: google.maps.TravelMode.DRIVING,
+      unitSystem: google.maps.UnitSystem.METRIC,
+      avoidHighways: false,
+      avoidTolls: false,
+    },
+    (response, status) => {
+      if (status !== "OK") {
+        alert("Error was: " + status);
+      } else {
+        const originList = response.originAddresses;
+        const destinationList = response.destinationAddresses;
+        const outputDiv = document.getElementById("output");
+        outputDiv.innerHTML = "";
+        deleteMarkers(markersArray);
 
-    center: myLatLng,
-    zoom: 1,
-    mapTypeId: google.maps.MapTypeId.ROADMAP
-};
+        const showGeocodedAddressOnMap = function (asDestination) {
+          const icon = asDestination ? destinationIcon : originIcon;
 
-// Hide result box
-document.getElementById("output").style.display = "none";
+          return function (results, status) {
+            if (status === "OK") {
+              map.fitBounds(bounds.extend(results[0].geometry.location));
+              markersArray.push(
+                new google.maps.Marker({
+                  map,
+                  position: results[0].geometry.location,
+                  icon: icon,
+                })
+              );
+            } else {
+              alert("Geocode was not successful due to: " + status);
+            }
+          };
+        };
 
-// Create/Init map
-var map = new google.maps.Map(document.getElementById('google-map'), mapOptions);
+        for (let i = 0; i < originList.length; i++) {
+          const results = response.rows[i].elements;
+          geocoder.geocode(
+            { address: originList[i] },
+            showGeocodedAddressOnMap(false)
+          );
 
-// Create a DirectionsService object to use the route method and get a result for our request
-var directionsService = new google.maps.DirectionsService();
-
-// Create a DirectionsRenderer object which we will use to display the route
-var directionsDisplay = new google.maps.DirectionsRenderer();
-
-// Bind the DirectionsRenderer to the map
-directionsDisplay.setMap(map);
-
-
-// Define calcRoute function
-function calcRoute() {
-    //create request
-    var request = {
-        origin: document.getElementById("location-1").value,
-        destination: document.getElementById("location-2").value,
-        travelMode: google.maps.TravelMode.DRIVING,
-        unitSystem: google.maps.UnitSystem.METRIC
-    }
-
-    // Routing
-    directionsService.route(request, function (result, status) {
-        if (status == google.maps.DirectionsStatus.OK) {
-
-            //Get distance and time
-
-            $("#output").html("<div class='result-table'> Driving distance: " + result.routes[0].legs[0].distance.text + ".<br />Duration: " + result.routes[0].legs[0].duration.text + ".</div>");
-            document.getElementById("output").style.display = "block";
-
-            //display route
-            directionsDisplay.setDirections(result);
-        } else {
-            //delete route from map
-            directionsDisplay.setDirections({ routes: [] });
-            //center map in London
-            map.setCenter(myLatLng);
-
-            //Show error message
-
-            alert("Can't find road! Please try again!");
-            clearRoute();
+          for (let j = 0; j < results.length; j++) {
+            geocoder.geocode(
+              { address: destinationList[j] },
+              showGeocodedAddressOnMap(true)
+            );
+            outputDiv.innerHTML +=
+             
+             results[j].distance.text + ' : '+ 
+   results[j].duration.text + "<br>"
+          }
         }
-    });
-
+      }
+    }
+  );
 }
 
-// Clear results
-
-function clearRoute(){
-    document.getElementById("output").style.display = "none";
-    document.getElementById("location-1").value = "";
-    document.getElementById("location-2").value = "";
-    directionsDisplay.setDirections({ routes: [] });
-
+function deleteMarkers(markersArray) {
+  for (let i = 0; i < markersArray.length; i++) {
+    markersArray[i].setMap(null);
+  }
+  markersArray = [];
 }
-
-// Create autocomplete objects for all inputs
-
-var options = {
-    types: ['(cities)']
-}
-
-
-var input1 = document.getElementById("location-1");
-var autocomplete1 = new google.maps.places.Autocomplete(input1, options);
-
-var input2 = document.getElementById("location-2");
-var autocomplete2 = new google.maps.places.Autocomplete(input2, options);
